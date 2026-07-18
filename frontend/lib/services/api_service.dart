@@ -4,13 +4,10 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/person_model.dart';
 
-import 'package:flutter/foundation.dart';
 
 class ApiService {
   // Use localhost for web browsers (Chrome/Edge), and 10.0.2.2 loopback for Android emulators
-  static const String baseUrl = kIsWeb
-      ? 'http://localhost:5000/api'
-      : 'http://10.0.2.2:5000/api';
+  static const String baseUrl = 'https://soulmate-backend-9kk9.onrender.com/api';
 
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
