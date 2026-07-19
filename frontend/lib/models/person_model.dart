@@ -209,9 +209,10 @@ class AppState {
   factory AppState() => _instance;
   AppState._internal();
 
-  bool isLoggedIn = false;
+   bool isLoggedIn = false;
   String userRole = 'User';
   final ValueNotifier<String> userName = ValueNotifier<String>('Profile User');
+  final ValueNotifier<String> userPhotoUrl = ValueNotifier<String>('');
   final ValueNotifier<List<PersonModel>> favorites = ValueNotifier<List<PersonModel>>([]);
   final ValueNotifier<List<PersonModel>> expressions = ValueNotifier<List<PersonModel>>([]);
 
@@ -220,6 +221,7 @@ class AppState {
     isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
     userName.value = prefs.getString('userName') ?? 'Profile User';
     userRole = prefs.getString('userRole') ?? 'User';
+    userPhotoUrl.value = prefs.getString('userPhotoUrl') ?? '';
     
     // Load favorites by matching stored IDs with ApiService profiles
     final favIds = prefs.getStringList('favorites_ids') ?? [];
@@ -238,12 +240,20 @@ class AppState {
     await prefs.setBool('isLoggedIn', true);
     await prefs.setString('userName', name);
     await prefs.setString('userRole', role);
+    userPhotoUrl.value = prefs.getString('userPhotoUrl') ?? '';
+  }
+
+  Future<void> saveUserPhoto(String url) async {
+    userPhotoUrl.value = url;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('userPhotoUrl', url);
   }
 
   Future<void> logout() async {
     isLoggedIn = false;
     userRole = 'User';
     userName.value = 'Profile User';
+    userPhotoUrl.value = '';
     favorites.value = [];
     expressions.value = [];
     final prefs = await SharedPreferences.getInstance();

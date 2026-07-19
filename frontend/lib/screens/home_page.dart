@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
 import '../models/person_model.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
@@ -37,11 +40,107 @@ class _HomePageState extends State<HomePage> {
   }
 
   bool _isLoadingProfiles = false;
+  bool _isUploadingPhoto = false;
 
   void _loadProfiles() async {
     if (mounted) setState(() => _isLoadingProfiles = true);
     await ApiService().loadProfiles();
     if (mounted) setState(() => _isLoadingProfiles = false);
+  }
+
+  Future<void> _pickAndUploadUserPhoto() async {
+    final ImagePicker picker = ImagePicker();
+    try {
+      final XFile? file = await picker.pickImage(source: ImageSource.gallery);
+      if (file != null) {
+        setState(() => _isUploadingPhoto = true);
+
+        // Direct unsigned Cloudinary upload
+        final request = http.MultipartRequest(
+          'POST',
+          Uri.parse('https://api.cloudinary.com/v1_1/djooa6hst/image/upload'),
+        );
+        request.fields['upload_preset'] = 'soulmate';
+
+        final bytes = await file.readAsBytes();
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'file',
+            bytes,
+            filename: file.name,
+          ),
+        );
+
+        final response = await request.send();
+        final responseData = await response.stream.bytesToString();
+        final data = jsonDecode(responseData);
+
+        if (response.statusCode == 200 && data['secure_url'] != null) {
+          final imageUrl = data['secure_url'].toString();
+          
+          // Save in AppState local cache
+          await AppState().saveUserPhoto(imageUrl);
+
+          // Check if user has matrimony profile card in database
+          PersonModel? myProfile;
+          for (var p in ApiService().profiles) {
+            if (p.name.trim().toLowerCase() == AppState().userName.value.trim().toLowerCase()) {
+              myProfile = p;
+              break;
+            }
+          }
+
+          // If matrimony card exists, update backend database profile photo
+          if (myProfile != null) {
+            final updateData = {
+              'name': myProfile.name,
+              'age': myProfile.age,
+              'gender': myProfile.gender,
+              'height': myProfile.height,
+              'religion': myProfile.religion,
+              'caste': myProfile.caste,
+              'education': myProfile.education,
+              'profession': myProfile.profession,
+              'salary': myProfile.salary,
+              'city': myProfile.city,
+              'state': myProfile.state,
+              'photoUrl': imageUrl,
+              'isVerified': myProfile.isVerified,
+              'status': 'Active',
+              'star': myProfile.star,
+              'rasi': myProfile.rasi,
+              'gothram': myProfile.gothram,
+              'fatherOccupation': myProfile.fatherOccupation,
+              'motherOccupation': myProfile.motherOccupation,
+              'compatibilityScore': myProfile.compatibilityScore,
+            };
+            await ApiService().updateProfile(myProfile.id, updateData);
+            _loadProfiles();
+          }
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Profile photo updated successfully!'), backgroundColor: Colors.green),
+            );
+          }
+        } else {
+          final errMsg = data['error']?['message'] ?? 'Upload failed';
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Cloudinary Error: $errMsg'), backgroundColor: Colors.red),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUploadingPhoto = false);
+    }
   }
 
   @override
@@ -403,27 +502,57 @@ class _HomePageState extends State<HomePage> {
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  Stack(
-                    alignment: Alignment.bottomRight,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(colors: [AppTheme.primary, AppTheme.accentGold]),
-                        ),
-                        child: const CircleAvatar(
-                          radius: 50,
-                          backgroundColor: Colors.white,
-                          backgroundImage: NetworkImage('https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=500&auto=format&fit=crop&q=60'),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: const BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
-                        child: const Icon(Icons.edit, color: Colors.white, size: 14),
-                      ),
-                    ],
+                  ValueListenableBuilder<String>(
+                    valueListenable: AppState().userPhotoUrl,
+                    builder: (context, photoUrl, _) {
+                      String resolvedPhoto = photoUrl;
+                      if (resolvedPhoto.isEmpty) {
+                        for (var p in ApiService().profiles) {
+                          if (p.name.trim().toLowerCase() == AppState().userName.value.trim().toLowerCase()) {
+                            resolvedPhoto = p.photoUrl;
+                            break;
+                          }
+                        }
+                      }
+                      if (resolvedPhoto.isEmpty) {
+                        resolvedPhoto = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500';
+                      }
+
+                      return Stack(
+                        alignment: Alignment.bottomRight,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(colors: [AppTheme.primary, AppTheme.accentGold]),
+                            ),
+                            child: CircleAvatar(
+                              radius: 50,
+                              backgroundColor: Colors.white,
+                              backgroundImage: NetworkImage(resolvedPhoto),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: _isUploadingPhoto ? null : _pickAndUploadUserPhoto,
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: const BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
+                              child: _isUploadingPhoto
+                                  ? const SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.edit, color: Colors.white, size: 14),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 14),
                   ValueListenableBuilder<String>(

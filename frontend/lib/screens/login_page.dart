@@ -9,6 +9,7 @@ import '../models/person_model.dart';
 import '../services/api_service.dart';
 import 'home_page.dart';
 import 'signup_page.dart';
+import 'package:animations/animations.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -251,9 +252,9 @@ class _LoginPageState extends State<LoginPage> {
                           'Soulmate',
                           style: Theme.of(context).textTheme.displayLarge?.copyWith(
                             color: Colors.white,
-                            fontStyle: FontStyle.italic,
                             fontSize: 42,
                             letterSpacing: 2,
+                            fontWeight: FontWeight.bold,
                           ),
                         ).animate().fade(duration: 500.ms).slideY(begin: 0.2, end: 0.0),
                       ),
@@ -300,58 +301,71 @@ class _LoginPageState extends State<LoginPage> {
 
                                   // Role Selector Segmented Tab
                                   Container(
-                                    padding: const EdgeInsets.all(4),
+                                    height: 42,
                                     decoration: BoxDecoration(
                                       color: Colors.white.withOpacity(0.1),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          child: GestureDetector(
-                                            onTap: () => setState(() => _selectedRole = 'User'),
-                                            child: Container(
-                                              padding: const EdgeInsets.symmetric(vertical: 8),
-                                              decoration: BoxDecoration(
-                                                color: _selectedRole == 'User' ? AppTheme.primary : Colors.transparent,
-                                                borderRadius: BorderRadius.circular(8),
-                                              ),
-                                              child: Center(
-                                                child: Text(
-                                                  'Candidate',
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontWeight: _selectedRole == 'User' ? FontWeight.bold : FontWeight.normal,
-                                                    fontSize: 13,
-                                                  ),
+                                    child: LayoutBuilder(
+                                      builder: (context, constraints) {
+                                        final tabWidth = (constraints.maxWidth - 8) / 2;
+                                        return Stack(
+                                          children: [
+                                            // Sliding active indicator
+                                            AnimatedPositioned(
+                                              duration: const Duration(milliseconds: 250),
+                                              curve: Curves.easeInOut,
+                                              left: _selectedRole == 'User' ? 4 : 4 + tabWidth,
+                                              top: 4,
+                                              bottom: 4,
+                                              width: tabWidth,
+                                              child: Container(
+                                                decoration: BoxDecoration(
+                                                  color: AppTheme.primary,
+                                                  borderRadius: BorderRadius.circular(8),
                                                 ),
                                               ),
                                             ),
-                                          ),
-                                        ),
-                                        Expanded(
-                                          child: GestureDetector(
-                                            onTap: () => setState(() => _selectedRole = 'Admin'),
-                                            child: Container(
-                                              padding: const EdgeInsets.symmetric(vertical: 8),
-                                              decoration: BoxDecoration(
-                                                color: _selectedRole == 'Admin' ? AppTheme.primary : Colors.transparent,
-                                                borderRadius: BorderRadius.circular(8),
-                                              ),
-                                              child: Center(
-                                                child: Text(
-                                                  'Admin',
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontWeight: _selectedRole == 'Admin' ? FontWeight.bold : FontWeight.normal,
-                                                    fontSize: 13,
+                                            // Active clickable headers
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: GestureDetector(
+                                                    behavior: HitTestBehavior.opaque,
+                                                    onTap: () => setState(() => _selectedRole = 'User'),
+                                                    child: Center(
+                                                      child: Text(
+                                                        'Candidate',
+                                                        style: TextStyle(
+                                                          color: Colors.white,
+                                                          fontWeight: _selectedRole == 'User' ? FontWeight.bold : FontWeight.normal,
+                                                          fontSize: 13,
+                                                        ),
+                                                      ),
+                                                    ),
                                                   ),
                                                 ),
-                                              ),
+                                                Expanded(
+                                                  child: GestureDetector(
+                                                    behavior: HitTestBehavior.opaque,
+                                                    onTap: () => setState(() => _selectedRole = 'Admin'),
+                                                    child: Center(
+                                                      child: Text(
+                                                        'Admin',
+                                                        style: TextStyle(
+                                                          color: Colors.white,
+                                                          fontWeight: _selectedRole == 'Admin' ? FontWeight.bold : FontWeight.normal,
+                                                          fontSize: 13,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
                                             ),
-                                          ),
-                                        ),
-                                      ],
+                                          ],
+                                        );
+                                      },
                                     ),
                                   ),
                                   const SizedBox(height: 18),
@@ -441,7 +455,7 @@ class _LoginPageState extends State<LoginPage> {
                                   // Submit button
                                   _isLoading
                                       ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
-                                      : CustomButton(onPressed: _handleLogin, text: 'Sign In Successfully'),
+                                      : CustomButton(onPressed: _handleLogin, text: 'Sign In'),
 
 
                                 ],
@@ -458,7 +472,19 @@ class _LoginPageState extends State<LoginPage> {
                         child: GestureDetector(
                           onTap: () {
                             Navigator.of(context).push(
-                              MaterialPageRoute(builder: (context) => const SignupPage()),
+                              PageRouteBuilder(
+                                transitionDuration: const Duration(milliseconds: 650),
+                                reverseTransitionDuration: const Duration(milliseconds: 550),
+                                pageBuilder: (context, animation, secondaryAnimation) => const SignupPage(),
+                                transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                  return SharedAxisTransition(
+                                    animation: animation,
+                                    secondaryAnimation: secondaryAnimation,
+                                    transitionType: SharedAxisTransitionType.horizontal,
+                                    child: child,
+                                  );
+                                },
+                              ),
                             );
                           },
                           child: RichText(
